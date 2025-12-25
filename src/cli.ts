@@ -7,6 +7,7 @@ import { openDb, saveDb, searchMemories, setPinned, compactMemories, purgeExpire
 import { runCapturePipeline, logRetrieval, logInjection } from "./pipeline";
 import { buildInjection } from "./inject";
 import { approxTokens, ensureDir } from "./utils";
+import { formatFull, formatIndex } from "./format";
 
 async function withDb<T>(cwd: string, fn: (ctx: Awaited<ReturnType<typeof openDb>>, config: ReturnType<typeof loadConfig>) => Promise<T>): Promise<T> {
   const config = loadConfig(cwd);
@@ -78,6 +79,8 @@ async function main(): Promise<void> {
     .description("Retrieve memories matching a query")
     .option("--path <path>")
     .option("--limit <limit>", "Limit", "10")
+    .option("--format <format>", "Format: index|full", "index")
+    .option("--json", "Output JSON")
     .action(async (query, opts) => {
       await withDb(process.cwd(), async (db, config) => {
         const results = searchMemories(db, {
@@ -88,9 +91,16 @@ async function main(): Promise<void> {
           recencyDays: config.recencyDays
         });
         logRetrieval(config, String(query), results.length);
-        for (const memory of results) {
-          console.log(`${memory.id} [${memory.kind}] ${memory.title} (score=${memory.score.toFixed(2)})`);
+        if (opts.json) {
+          console.log(JSON.stringify(results, null, 2));
+          return;
         }
+        const format = String(opts.format || "index");
+        if (format === "full") {
+          console.log(formatFull(results));
+          return;
+        }
+        console.log(formatIndex(results));
       });
     });
 

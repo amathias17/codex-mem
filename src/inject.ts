@@ -1,25 +1,7 @@
 import { Config } from "./config";
 import { MemoryResult } from "./db";
 import { approxTokens } from "./utils";
-
-function formatIndex(memories: MemoryResult[]): string {
-  return memories
-    .map((memory, index) => {
-      const date = new Date(memory.created_at_epoch).toISOString();
-      const kind = memory.kind ? `[${memory.kind}] ` : "";
-      return `${index + 1}. ${kind}${memory.title}\n   Date: ${date}\n   ID: ${memory.id}`;
-    })
-    .join("\n");
-}
-
-function formatFull(memories: MemoryResult[]): string {
-  return memories
-    .map((memory) => {
-      const date = new Date(memory.created_at_epoch).toISOString();
-      return `# ${memory.title}\nKind: ${memory.kind}\nDate: ${date}\nID: ${memory.id}\n\n${memory.body}`;
-    })
-    .join("\n\n");
-}
+import { formatFull, formatIndex } from "./format";
 
 export function buildInjection(config: Config, memories: MemoryResult[]): string {
   const items = memories.slice();

@@ -13,6 +13,14 @@ node dist/cli.js retrieve "build tool" --limit 5
 node dist/cli.js inject --query "build tool"
 ```
 
+## Retrieve formats
+
+```bash
+node dist/cli.js retrieve "query" --format index
+node dist/cli.js retrieve "query" --format full
+node dist/cli.js retrieve "query" --json
+```
+
 ## Worker + hooks
 
 Start the worker:
