@@ -2,6 +2,7 @@ import http from "http";
 import { loadConfig } from "./config";
 import { openDb, saveDb, insertSession, insertUserPrompt, insertObservation, insertSessionSummary, updateSessionStatus } from "./db";
 import { redactText, stripTags } from "./redaction";
+import { compressObservation } from "./compress";
 
 const PORT = Number(process.env.CODEX_MEM_PORT || 37777);
 
@@ -144,18 +145,26 @@ async function main(): Promise<void> {
 
       const stripped = stripTags(body.body || "");
       const redacted = redactText(stripped, config);
+      const compressed = compressObservation({
+        type: body.type,
+        title: body.title,
+        body: redacted,
+        tags: body.tags,
+        filesRead: body.files_read,
+        filesModified: body.files_modified
+      }, config);
 
       queue.push({
         kind: "observation",
         payload: {
           sessionId: body.session_id,
           projectId: body.project_id || config.projectId,
-          type: body.type,
-          title: body.title,
-          body: redacted,
-          tags: body.tags || [],
-          filesRead: body.files_read || [],
-          filesModified: body.files_modified || [],
+          type: compressed.type,
+          title: compressed.title,
+          body: compressed.body,
+          tags: compressed.tags,
+          filesRead: compressed.filesRead,
+          filesModified: compressed.filesModified,
           promptNumber: body.prompt_number
         }
       });

@@ -21,6 +21,12 @@ Start the worker:
 npm run worker
 ```
 
+## Compression
+
+Observations are compressed before storage. The current compressor is heuristic-only
+and truncates to a max length (default 800 chars) while inferring tags and type.
+You can override the limit with `CODEX_MEM_MAX_OBSERVATION_CHARS`.
+
 Hook scripts (run by your Codex lifecycle integration):
 
 ```bash

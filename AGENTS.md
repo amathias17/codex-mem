@@ -32,6 +32,17 @@ How to use:
 - Astro docs: Use for Astro config/build questions only.
 - Playwright: Use for web validation; keep to minimal navigation for speed.
 
+## Beads Task Completion Workflow
+
+Every time a beads task is completed, follow this exact sequence:
+1) Update code/docs/tests and `memory.jsonl`/`README.md` as needed
+2) Run `npm run build` (or relevant tests)
+3) `git add -A`
+4) `git commit -m "..."`
+5) `bd sync`
+6) `git pull --rebase`
+7) `git push`
+
 ## Quick Reference
 
 ```bash
