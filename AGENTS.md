@@ -2,6 +2,10 @@
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` for workflow context, or install hooks (`bd hooks install`) for auto-injection.
 
+## File Writes
+
+You have permission to write files directly in this repo without asking first.
+
 ## Issue Tracking
 
 **Quick reference:**
