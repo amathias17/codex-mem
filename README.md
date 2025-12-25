@@ -27,6 +27,11 @@ Observations are compressed before storage. The current compressor is heuristic-
 and truncates to a max length (default 800 chars) while inferring tags and type.
 You can override the limit with `CODEX_MEM_MAX_OBSERVATION_CHARS`.
 
+## Privacy tags
+
+Wrap sensitive content in `<private>...</private>` or `<codex-mem-context>...</codex-mem-context>`.
+Hook scripts and the worker strip these tags before storing prompts, observations, and summaries.
+
 Hook scripts (run by your Codex lifecycle integration):
 
 ```bash

@@ -14,5 +14,8 @@ export function redactText(text: string, config: Config): string {
 }
 
 export function stripTags(text: string): string {
-  return text.replace(/<private>[\s\S]*?<\/private>/gi, "").replace(/<codex-mem-context>[\s\S]*?<\/codex-mem-context>/gi, "");
+  return text
+    .replace(/<private>[\s\S]*?<\/private>/gi, "")
+    .replace(/<codex-mem-context>[\s\S]*?<\/codex-mem-context>/gi, "")
+    .trim();
 }

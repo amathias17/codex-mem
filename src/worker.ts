@@ -119,10 +119,16 @@ async function main(): Promise<void> {
         prompt_text: string;
         prompt_number: number;
       };
+      const stripped = stripTags(body.prompt_text || "");
+      const redacted = redactText(stripped, config);
+      if (!redacted) {
+        sendJson(res, 200, { skipped: true, reason: "prompt empty after privacy stripping" });
+        return;
+      }
       const id = insertUserPrompt(dbCtx, {
         sessionId: body.session_id,
         projectId: body.project_id || config.projectId,
-        promptText: body.prompt_text,
+        promptText: redacted,
         promptNumber: body.prompt_number
       });
       saveDb(dbCtx);
@@ -182,11 +188,17 @@ async function main(): Promise<void> {
         body: string;
         prompt_number: number;
       };
+      const stripped = stripTags(body.body || "");
+      const redacted = redactText(stripped, config);
+      if (!redacted) {
+        sendJson(res, 200, { skipped: true, reason: "summary empty after privacy stripping" });
+        return;
+      }
       const id = insertSessionSummary(dbCtx, {
         sessionId: body.session_id,
         projectId: body.project_id || config.projectId,
         title: body.title,
-        body: body.body,
+        body: redacted,
         promptNumber: body.prompt_number
       });
       saveDb(dbCtx);

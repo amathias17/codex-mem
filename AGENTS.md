@@ -32,6 +32,14 @@ How to use:
 - Astro docs: Use for Astro config/build questions only.
 - Playwright: Use for web validation; keep to minimal navigation for speed.
 
+Required MCP workflow:
+- Always run `list_mcp_resources` and `list_mcp_resource_templates` first.
+- Use `mcp__deepwiki__ask_question` before any schema or architecture changes.
+- Use `mcp__context7__resolve-library-id` + `mcp__context7__get-library-docs` before using unfamiliar library APIs.
+- Only run `mcp__astrodocs__search_astro_docs` for Astro-related tasks.
+- Use Playwright only when validating web behavior or UI content.
+- Use `mcp__sequential-thinking__sequentialthinking` only for short planning (3–5 bullets).
+
 ## Beads Task Completion Workflow
 
 Every time a beads task is completed, follow this exact sequence:

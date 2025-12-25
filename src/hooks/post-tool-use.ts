@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { stripTags } from "../redaction";
 import { getNumber, getValue, postJson, readJsonInput, writeOutput } from "./shared";
 
 async function main(): Promise<void> {
@@ -18,12 +19,18 @@ async function main(): Promise<void> {
   const filesRead = Array.isArray(input.files_read) ? input.files_read : [];
   const filesModified = Array.isArray(input.files_modified) ? input.files_modified : [];
 
+  const strippedBody = stripTags(body);
+  if (!strippedBody) {
+    writeOutput({ skipped: true, reason: "body empty after privacy stripping" });
+    return;
+  }
+
   const response = await postJson("/api/sessions/observations", {
     session_id: sessionId,
     project_id: projectId,
     type,
     title,
-    body,
+    body: strippedBody,
     tags,
     files_read: filesRead,
     files_modified: filesModified,

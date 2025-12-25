@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { stripTags } from "../redaction";
 import { getNumber, getValue, postJson, readJsonInput, writeOutput } from "./shared";
 
 async function main(): Promise<void> {
@@ -12,10 +13,16 @@ async function main(): Promise<void> {
     throw new Error("session_id, prompt_text, and prompt_number are required");
   }
 
+  const strippedPrompt = stripTags(promptText);
+  if (!strippedPrompt) {
+    writeOutput({ skipped: true, reason: "prompt empty after privacy stripping" });
+    return;
+  }
+
   const response = await postJson("/api/sessions/prompt", {
     session_id: sessionId,
     project_id: projectId,
-    prompt_text: promptText,
+    prompt_text: strippedPrompt,
     prompt_number: promptNumber
   });
 
