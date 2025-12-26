@@ -358,38 +358,41 @@ export function searchMemories(ctx: DbContext, input: {
         VALUES (?, ?, ?);
       `);
 
-      for (const row of candidates) {
-        let embedding: number[] | null = null;
-        selectEmbedding.bind([row.id]);
-        if (selectEmbedding.step()) {
-          const stored = selectEmbedding.getAsObject() as { embedding?: string };
-          if (typeof stored.embedding === "string") {
-            try {
-              const parsed = JSON.parse(stored.embedding) as number[];
-              if (Array.isArray(parsed)) {
-                embedding = parsed;
+      try {
+        for (const row of candidates) {
+          let embedding: number[] | null = null;
+          selectEmbedding.bind([row.id]);
+          if (selectEmbedding.step()) {
+            const stored = selectEmbedding.getAsObject() as { embedding?: string };
+            if (typeof stored.embedding === "string") {
+              try {
+                const parsed = JSON.parse(stored.embedding) as number[];
+                if (Array.isArray(parsed)) {
+                  embedding = parsed;
+                }
+              } catch {
+                embedding = null;
               }
-            } catch {
-              embedding = null;
             }
           }
-        }
-        selectEmbedding.reset();
+          selectEmbedding.reset();
 
-        if (!embedding) {
-          embedding = embedText(buildEmbeddingText(row.title, row.body));
-          insertEmbedding.run([row.id, JSON.stringify(embedding), Date.now()]);
+          if (!embedding) {
+            embedding = embedText(buildEmbeddingText(row.title, row.body));
+            insertEmbedding.run([row.id, JSON.stringify(embedding), Date.now()]);
+          }
+
+          const similarity = cosineSimilarity(queryEmbedding, embedding);
+          rows.push({ ...row, rank: similarity });
         }
 
-        const similarity = cosineSimilarity(queryEmbedding, embedding);
-        rows.push({ ...row, rank: similarity });
+        rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
+        rows = rows.slice(0, input.limit);
+        mode = "embedding";
+      } finally {
+        selectEmbedding.free();
+        insertEmbedding.free();
       }
-
-      selectEmbedding.free();
-      insertEmbedding.free();
-      rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
-      rows = rows.slice(0, input.limit);
-      mode = "embedding";
     }
   }
 

@@ -6,7 +6,12 @@
       "Bash(npm run build:*)",
       "Bash(bd create:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd codebase analysis and create quality issues\n\nPerformed comprehensive analysis using MCP tools and created 10 beads issues\ntracking critical bugs, security vulnerabilities, and technical debt.\n\nIssues created:\n- codex-mem-21q: Resource leak in db.ts searchMemories \\(P1\\)\n- codex-mem-wml: Unhandled promise rejections in worker \\(P1\\)\n- codex-mem-365: Add graceful HTTP server shutdown \\(P1\\)\n- codex-mem-27b: Database not saved on error paths \\(P2\\)\n- codex-mem-95t: Race condition in queue processing \\(P2\\)\n- codex-mem-dik: Request body size limit for DoS protection \\(P2\\)\n- codex-mem-w80: Sanitize FTS query to prevent SQL injection \\(P2\\)\n- codex-mem-03a: Error handling for stdin in hooks \\(P3\\)\n- codex-mem-44i: HTML escaping in viewer to prevent XSS \\(P3\\)\n- codex-mem-k7x: Comprehensive test coverage \\(P3\\)\n\nUpdated memory.jsonl with analysis summary.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd codebase analysis and create quality issues\n\nPerformed comprehensive analysis using MCP tools and created 10 beads issues\ntracking critical bugs, security vulnerabilities, and technical debt.\n\nIssues created:\n- codex-mem-21q: Resource leak in db.ts searchMemories \\(P1\\)\n- codex-mem-wml: Unhandled promise rejections in worker \\(P1\\)\n- codex-mem-365: Add graceful HTTP server shutdown \\(P1\\)\n- codex-mem-27b: Database not saved on error paths \\(P2\\)\n- codex-mem-95t: Race condition in queue processing \\(P2\\)\n- codex-mem-dik: Request body size limit for DoS protection \\(P2\\)\n- codex-mem-w80: Sanitize FTS query to prevent SQL injection \\(P2\\)\n- codex-mem-03a: Error handling for stdin in hooks \\(P3\\)\n- codex-mem-44i: HTML escaping in viewer to prevent XSS \\(P3\\)\n- codex-mem-k7x: Comprehensive test coverage \\(P3\\)\n\nUpdated memory.jsonl with analysis summary.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(bd sync:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(bd update:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
