@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { getValue, postJson, readJsonInput, writeOutput, HookInput } from "./shared";
+import { getValue, logHookPayload, postJson, readJsonInputWithRaw, writeOutput, HookInput } from "./shared";
 
 function unwrapPayload(input: HookInput): HookInput {
   const payload = input.payload;
@@ -24,8 +24,9 @@ function pickString(input: HookInput, keys: string[]): string | undefined {
 }
 
 async function main(): Promise<void> {
-  const input = await readJsonInput();
+  const { input, raw } = await readJsonInputWithRaw();
   const payload = unwrapPayload(input);
+  logHookPayload("codex-session-start", payload, raw);
   const projectId = pickString(payload, ["project_id", "projectId", "project", "repo"])
     || getValue(payload, "project_id", "CODEX_PROJECT_ID");
   const codexSessionId = pickString(payload, ["codex_session_id", "session_id", "sessionId", "id"])

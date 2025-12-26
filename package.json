@@ -17,6 +17,7 @@
     "hook:prompt-submit": "node dist/hooks/prompt-submit.js",
     "hook:post-tool-use": "node dist/hooks/post-tool-use.js",
     "hook:codex-post-tool-use": "node dist/hooks/codex-post-tool-use.js",
+    "hook:codex-notify": "node dist/hooks/codex-notify.js",
     "hook:stop": "node dist/hooks/stop.js",
     "hook:session-end": "node dist/hooks/session-end.js"
   },

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { stripTags } from "../redaction";
-import { getNumber, getValue, postJson, readJsonInput, writeOutput, HookInput } from "./shared";
+import { getNumber, getValue, logHookPayload, postJson, readJsonInputWithRaw, writeOutput, HookInput } from "./shared";
 
 function unwrapPayload(input: HookInput): HookInput {
   const payload = input.payload;
@@ -77,8 +77,9 @@ function resolveToolName(payload: HookInput): string | undefined {
 }
 
 async function main(): Promise<void> {
-  const input = await readJsonInput();
+  const { input, raw } = await readJsonInputWithRaw();
   const payload = unwrapPayload(input);
+  logHookPayload("codex-post-tool-use", payload, raw);
 
   const sessionId = pickString(payload, ["session_id", "sessionId", "session"])
     || getValue(payload, "session_id", "CODEX_MEM_SESSION_ID");

@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 
 export type HookInput = Record<string, unknown>;
 
@@ -26,6 +27,18 @@ export async function readJsonInput(): Promise<HookInput> {
     return JSON.parse(raw) as HookInput;
   } catch {
     return {};
+  }
+}
+
+export async function readJsonInputWithRaw(): Promise<{ raw: string; input: HookInput }> {
+  const raw = await readStdin();
+  if (!raw.trim()) {
+    return { raw, input: {} };
+  }
+  try {
+    return { raw, input: JSON.parse(raw) as HookInput };
+  } catch {
+    return { raw, input: {} };
   }
 }
 
@@ -80,4 +93,20 @@ export function ensureInput(input: HookInput, keys: string[]): void {
 
 export function hasFile(pathname: string): boolean {
   return fs.existsSync(pathname);
+}
+
+export function logHookPayload(hookName: string, payload: unknown, raw?: string): void {
+  if (!process.env.CODEX_MEM_HOOK_DEBUG) {
+    return;
+  }
+  const dataDir = path.join(process.cwd(), ".codex-mem");
+  fs.mkdirSync(dataDir, { recursive: true });
+  const logPath = path.join(dataDir, "hooks.log");
+  const entry = {
+    ts: new Date().toISOString(),
+    hook: hookName,
+    payload,
+    raw
+  };
+  fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`, "utf8");
 }
