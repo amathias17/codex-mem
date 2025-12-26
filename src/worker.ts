@@ -666,7 +666,9 @@ async function main(): Promise<void> {
         }
       });
 
-      processQueue().catch(() => undefined);
+      processQueue().catch((err) => {
+        console.error("Error processing observation queue:", err);
+      });
       sendJson(res, 200, { queued: true, queue_depth: queue.length });
       return;
     }
