@@ -6,6 +6,11 @@ This project uses **bd (beads)** for issue tracking. Run `bd prime` for workflow
 
 You have permission to write files directly in this repo without asking first.
 
+## Memory Updates
+
+- Update `memory.jsonl` whenever code/docs/tests or workflows change.
+- Use concise, one-line entries that capture what changed and why it matters.
+
 ## Issue Tracking
 
 **Quick reference:**
@@ -36,7 +41,7 @@ Required MCP workflow:
 - Use `mcp__context7__resolve-library-id` + `mcp__context7__get-library-docs` before using unfamiliar library APIs.
 - Do not run `mcp__astrodocs__search_astro_docs` for this project.
 - Do not run Playwright MCPs for this project.
-- Use `mcp__sequential-thinking__sequentialthinking` only for short planning (3–5 bullets).
+- Use `mcp__sequential-thinking__sequentialthinking` only for short planning (3-5 bullets).
 
 ## Beads Task Completion Workflow
 

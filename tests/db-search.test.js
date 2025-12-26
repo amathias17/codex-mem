@@ -55,3 +55,54 @@ test("searchMemories ranks pinned items higher when content is identical", async
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("searchMemories falls back to embeddings with recency filtering", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-mem-test-"));
+  const ctx = await openDb(tempDir);
+  ctx.ftsEnabled = false;
+  try {
+    const projectId = "test-project";
+    const recentId = insertMemory(ctx, {
+      kind: "note",
+      title: "Alpha recent",
+      body: "alpha content",
+      projectId,
+      tags: [],
+      pathAffinity: []
+    });
+    const oldId = insertMemory(ctx, {
+      kind: "note",
+      title: "Alpha old",
+      body: "alpha content",
+      projectId,
+      tags: [],
+      pathAffinity: []
+    });
+
+    const now = Date.now();
+    const oldEpoch = now - 100 * 24 * 60 * 60 * 1000;
+    ctx.db.run("UPDATE memories SET created_at_epoch = ?, updated_at_epoch = ? WHERE id = ?;", [
+      now,
+      now,
+      recentId
+    ]);
+    ctx.db.run("UPDATE memories SET created_at_epoch = ?, updated_at_epoch = ? WHERE id = ?;", [
+      oldEpoch,
+      oldEpoch,
+      oldId
+    ]);
+
+    const results = searchMemories(ctx, {
+      query: "alpha",
+      projectId,
+      limit: 10,
+      recencyDays: 30
+    });
+
+    assert.equal(results.length, 1);
+    assert.equal(results[0].id, recentId);
+  } finally {
+    ctx.db.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});

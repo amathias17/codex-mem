@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
+import { cosineSimilarity, embedText } from "./embeddings";
 import { ensureDir, newId, safeJsonParse } from "./utils";
 
 export type DbContext = {
@@ -109,6 +110,12 @@ function ensureSchema(db: Database): boolean {
       path_affinity TEXT NOT NULL,
       pinned INTEGER NOT NULL DEFAULT 0,
       expires_at_epoch INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS memory_embeddings (
+      memory_id TEXT PRIMARY KEY,
+      embedding TEXT NOT NULL,
+      updated_at_epoch INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
@@ -244,6 +251,20 @@ function ensureSchema(db: Database): boolean {
   return ftsEnabled;
 }
 
+function buildEmbeddingText(title: string, body: string): string {
+  return `${title}\n${body}`;
+}
+
+function upsertMemoryEmbedding(ctx: DbContext, memoryId: string, title: string, body: string): void {
+  const embedding = embedText(buildEmbeddingText(title, body));
+  const stmt = ctx.db.prepare(`
+    INSERT OR REPLACE INTO memory_embeddings (memory_id, embedding, updated_at_epoch)
+    VALUES (?, ?, ?);
+  `);
+  stmt.run([memoryId, JSON.stringify(embedding), Date.now()]);
+  stmt.free();
+}
+
 export function insertMemory(ctx: DbContext, input: {
   kind: string;
   title: string;
@@ -271,6 +292,7 @@ export function insertMemory(ctx: DbContext, input: {
     JSON.stringify(input.pathAffinity || [])
   ]);
   stmt.free();
+  upsertMemoryEmbedding(ctx, id, input.title, input.body);
   return id;
 }
 
@@ -290,6 +312,7 @@ export function searchMemories(ctx: DbContext, input: {
   const now = Date.now();
   const expiresClause = "(expires_at_epoch IS NULL OR expires_at_epoch > ?)";
   let rows: Array<MemoryRow & { rank?: number }> = [];
+  let mode: "fts" | "embedding" | "like" | "recent" = "recent";
 
   if (input.query && ctx.ftsEnabled) {
     const stmt = ctx.db.prepare(`
@@ -305,7 +328,72 @@ export function searchMemories(ctx: DbContext, input: {
       rows.push(stmt.getAsObject() as MemoryRow & { rank?: number });
     }
     stmt.free();
-  } else if (input.query) {
+    if (rows.length) {
+      mode = "fts";
+    }
+  }
+
+  if (input.query && mode !== "fts") {
+    const recencyCutoff = now - input.recencyDays * 24 * 60 * 60 * 1000;
+    const scanLimit = Math.max(input.limit * 10, 50);
+    const stmt = ctx.db.prepare(`
+      SELECT *
+      FROM memories
+      WHERE project_id = ? AND ${expiresClause} AND created_at_epoch >= ?
+      ORDER BY created_at_epoch DESC
+      LIMIT ?;
+    `);
+    stmt.bind([input.projectId, now, recencyCutoff, scanLimit]);
+    const candidates: MemoryRow[] = [];
+    while (stmt.step()) {
+      candidates.push(stmt.getAsObject() as MemoryRow);
+    }
+    stmt.free();
+
+    if (candidates.length) {
+      const queryEmbedding = embedText(input.query);
+      const selectEmbedding = ctx.db.prepare("SELECT embedding FROM memory_embeddings WHERE memory_id = ?;");
+      const insertEmbedding = ctx.db.prepare(`
+        INSERT OR REPLACE INTO memory_embeddings (memory_id, embedding, updated_at_epoch)
+        VALUES (?, ?, ?);
+      `);
+
+      for (const row of candidates) {
+        let embedding: number[] | null = null;
+        selectEmbedding.bind([row.id]);
+        if (selectEmbedding.step()) {
+          const stored = selectEmbedding.getAsObject() as { embedding?: string };
+          if (typeof stored.embedding === "string") {
+            try {
+              const parsed = JSON.parse(stored.embedding) as number[];
+              if (Array.isArray(parsed)) {
+                embedding = parsed;
+              }
+            } catch {
+              embedding = null;
+            }
+          }
+        }
+        selectEmbedding.reset();
+
+        if (!embedding) {
+          embedding = embedText(buildEmbeddingText(row.title, row.body));
+          insertEmbedding.run([row.id, JSON.stringify(embedding), Date.now()]);
+        }
+
+        const similarity = cosineSimilarity(queryEmbedding, embedding);
+        rows.push({ ...row, rank: similarity });
+      }
+
+      selectEmbedding.free();
+      insertEmbedding.free();
+      rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
+      rows = rows.slice(0, input.limit);
+      mode = "embedding";
+    }
+  }
+
+  if (input.query && mode !== "fts" && mode !== "embedding") {
     const like = `%${input.query}%`;
     const stmt = ctx.db.prepare(`
       SELECT *
@@ -319,7 +407,8 @@ export function searchMemories(ctx: DbContext, input: {
       rows.push(stmt.getAsObject() as MemoryRow);
     }
     stmt.free();
-  } else {
+    mode = "like";
+  } else if (!input.query) {
     const stmt = ctx.db.prepare(`
       SELECT *
       FROM memories
@@ -332,17 +421,27 @@ export function searchMemories(ctx: DbContext, input: {
       rows.push(stmt.getAsObject() as MemoryRow);
     }
     stmt.free();
+    mode = "recent";
   }
 
-  const ranks = rows
-    .map((row) => row.rank)
-    .filter((rank): rank is number => typeof rank === "number");
-  const minRank = ranks.length ? Math.min(...ranks) : 0;
-  const maxRank = ranks.length ? Math.max(...ranks) : 1;
-  const range = maxRank - minRank || 1;
+  let minRank = 0;
+  let range = 1;
+  if (mode === "fts") {
+    const ranks = rows
+      .map((row) => row.rank)
+      .filter((rank): rank is number => typeof rank === "number");
+    minRank = ranks.length ? Math.min(...ranks) : 0;
+    const maxRank = ranks.length ? Math.max(...ranks) : 1;
+    range = maxRank - minRank || 1;
+  }
 
   return rows.map((row) => {
-    const baseScore = typeof row.rank === "number" ? 1 - (row.rank - minRank) / range : 0.5;
+    let baseScore = 0.5;
+    if (mode === "fts") {
+      baseScore = typeof row.rank === "number" ? 1 - (row.rank - minRank) / range : 0.5;
+    } else if (mode === "embedding") {
+      baseScore = typeof row.rank === "number" ? row.rank : 0;
+    }
     const tags = safeJsonParse<string[]>(row.tags, []);
     const pathAffinity = safeJsonParse<string[]>(row.path_affinity, []);
     const isPinned = row.pinned === 1;
