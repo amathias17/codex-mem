@@ -35,3 +35,25 @@ test("buildInjection trims output to maxInjectTokens", () => {
   assert.ok(tokenEstimate <= config.maxInjectTokens);
   assert.equal(sampleCount, 3);
 });
+
+test("buildInjection includes pinned and glossary sections with stable ordering", () => {
+  const now = Date.now();
+  const first = buildMemory("a1", "first body");
+  const second = buildMemory("a2", "second body");
+  const glossary = buildMemory("g1", "glossary body");
+  first.created_at_epoch = now - 1000;
+  second.created_at_epoch = now;
+  glossary.created_at_epoch = now - 500;
+  second.pinned = 1;
+  glossary.kind = "glossary";
+
+  const output = buildInjection({ maxInjectTokens: 4000 }, [first, second, glossary]);
+
+  const pinnedIndex = output.indexOf("## codex-mem pinned");
+  const glossaryIndex = output.indexOf("## codex-mem glossary");
+  assert.ok(pinnedIndex !== -1);
+  assert.ok(glossaryIndex !== -1);
+  assert.ok(pinnedIndex < glossaryIndex);
+  assert.ok(output.indexOf("ID: a2") !== -1);
+  assert.ok(output.indexOf("ID: g1") !== -1);
+});
