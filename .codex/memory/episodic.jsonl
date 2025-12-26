@@ -1,0 +1,2 @@
+{"date": "2025-12-26", "event": "Migrated legacy memory.jsonl into .codex/memory semantic/index and archived the file."}
+{"date": "2025-12-26", "event": "Added graceful shutdown handling for the worker HTTP server to stop new requests, drain the queue, and save the db on exit."}

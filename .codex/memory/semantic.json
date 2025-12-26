@@ -1,0 +1,125 @@
+{
+  "project.goal": {
+    "summary": "Build codex-mem to reach parity with claude-mem for Codex workflows.",
+    "details": [
+      "Parity gaps tracked as bd issues: hooks lifecycle, worker service, session schema, compression pipeline, hybrid search, privacy tagging."
+    ]
+  },
+  "decisions.dependencies": {
+    "summary": "Use sql.js instead of better-sqlite3 on Windows to avoid native build tooling.",
+    "details": [
+      "better-sqlite3 failed without Visual Studio C++ toolchain; switching back requires Desktop development with C++ workload."
+    ]
+  },
+  "architecture.core": {
+    "summary": "Core CLI supports capture/retrieve/inject with sqlite storage and compaction/purge.",
+    "details": [
+      "Event log stored at .codex-mem/events/events.log."
+    ]
+  },
+  "architecture.hooks": {
+    "summary": "Hook scripts capture session lifecycle and tool events and post JSON to the worker.",
+    "details": [
+      "Hooks live under src/hooks and accept stdin payloads for lifecycle events.",
+      "CODEX_MEM_HOOK_DEBUG enables raw payload logging to .codex-mem/hooks.log."
+    ]
+  },
+  "schema.sessions": {
+    "summary": "Session, prompt, observation, and summary tables with FTS5 virtual tables and triggers.",
+    "details": [
+      "Tables: sessions, user_prompts, observations, session_summaries plus FTS5 for prompts, observations, summaries."
+    ]
+  },
+  "architecture.compression": {
+    "summary": "Worker applies heuristic compression with tag and type inference before storage.",
+    "details": [
+      "Compression limit controlled by CODEX_MEM_MAX_OBSERVATION_CHARS."
+    ]
+  },
+  "architecture.privacy": {
+    "summary": "Hooks and worker strip <private> and <codex-mem-context> tags and redact content.",
+    "details": [
+      "Empty payloads are skipped; worker re-applies redaction for safety."
+    ]
+  },
+  "worker.shutdown": {
+    "summary": "Worker handles graceful shutdown to stop the HTTP server, drain the queue, and save the database.",
+    "details": [
+      "SIGINT/SIGTERM/SIGBREAK trigger a timed shutdown that stops new requests and flushes pending observations."
+    ]
+  },
+  "search.hybrid": {
+    "summary": "Hybrid search uses FTS5 and an embeddings fallback with recency filtering.",
+    "details": [
+      "Embeddings are stored and backfilled when missing; fallback uses lightweight hash-based embeddings and cosine similarity."
+    ]
+  },
+  "injection.format": {
+    "summary": "Injection output includes index, pinned, glossary, and samples with token-aware trimming.",
+    "details": [
+      "Formatter supports index/full modes and JSON output for retrieve."
+    ]
+  },
+  "config.parser": {
+    "summary": "Config parsing uses js-toml with validation and unknown key checks.",
+    "details": [
+      "redaction_patterns use TOML literal strings to preserve backslashes."
+    ]
+  },
+  "hooks.codex": {
+    "summary": "Codex notify hook is the supported integration; [hooks] config was not observed to trigger.",
+    "details": [
+      "Top-level notify uses an absolute Windows path to dist/hooks/codex-notify.js.",
+      "Adapters normalize thread-id/turn-id variants for session and prompt mapping."
+    ]
+  },
+  "hooks.exec": {
+    "summary": "codex-exec JSONL ingestion forwards per-tool observations.",
+    "details": [
+      "Exec events initialize sessions from thread ids and capture command/MCP outputs."
+    ]
+  },
+  "viewer.ui": {
+    "summary": "Worker serves a local memory viewer UI with list/detail browsing.",
+    "details": [
+      "Read APIs expose projects, observations, and summaries for the UI."
+    ]
+  },
+  "issues.parity": {
+    "summary": "Claudemem parity issues tracked in bd.",
+    "details": [
+      "codex-mem-3qt, codex-mem-7hs, codex-mem-4jz, codex-mem-go2, codex-mem-brv, codex-mem-s5t."
+    ]
+  },
+  "issues.roadmap": {
+    "summary": "Additional roadmap issues tracked in bd.",
+    "details": [
+      "codex-mem-aiw, codex-mem-pgt, codex-mem-mzj, codex-mem-58a, codex-mem-4po."
+    ]
+  },
+  "issues.quality": {
+    "summary": "Codebase analysis found critical/high/medium/low issues; focus areas identified.",
+    "details": [
+      "Critical/high/medium issue IDs: codex-mem-21q, codex-mem-wml, codex-mem-365, codex-mem-27b, codex-mem-95t, codex-mem-dik, codex-mem-w80, codex-mem-03a, codex-mem-44i, codex-mem-k7x.",
+      "Most critical files: src/db.ts, src/worker.ts, src/hooks/shared.ts."
+    ]
+  },
+  "fixes.recent": {
+    "summary": "Recent fixes addressed db statement leaks and silent worker failures.",
+    "details": [
+      "searchMemories now frees prepared statements; worker queue errors now log to console.error."
+    ]
+  },
+  "process.mcp": {
+    "summary": "MCP order: list resources/templates, DeepWiki, Context7, then short sequential-thinking if needed.",
+    "details": [
+      "Astro docs MCP and Playwright MCP are skipped for this project."
+    ]
+  },
+  "tooling.bd": {
+    "summary": "Beads (bd) is the issue tracker; use bd prime for workflow context.",
+    "details": [
+      "Common commands: bd ready, bd show, bd update, bd close, bd sync."
+    ]
+  }
+}

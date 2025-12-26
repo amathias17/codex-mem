@@ -8,8 +8,8 @@ You have permission to write files directly in this repo without asking first.
 
 ## Memory Updates
 
-- Update `memory.jsonl` whenever code/docs/tests or workflows change.
-- Use concise, one-line entries that capture what changed and why it matters.
+- Use the `llmemory` skill at `skills/llmemory/SKILL.md` as the persistent-memory workflow.
+- Write memory updates to `.codex/memory` per that skill; do not use `memory.jsonl`.
 
 ## Issue Tracking
 
@@ -46,7 +46,7 @@ Required MCP workflow:
 ## Beads Task Completion Workflow
 
 Every time a beads task is completed, follow this exact sequence:
-1) Update code/docs/tests and `memory.jsonl`/`README.md` as needed
+1) Update code/docs/tests and `.codex/memory`/`README.md` as needed
 2) Run `npm run build` (or relevant tests)
 3) `git add -A`
 4) `git commit -m "..."`

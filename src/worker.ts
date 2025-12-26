@@ -525,7 +525,33 @@ async function main(): Promise<void> {
     }
   }
 
+  let shuttingDown = false;
+
+  const waitForQueueDrain = async (): Promise<void> => {
+    const start = Date.now();
+    while (processing || queue.length) {
+      if (!processing && queue.length) {
+        try {
+          await processQueue();
+        } catch (err) {
+          console.error("Error draining observation queue during shutdown:", err);
+          break;
+        }
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      if (Date.now() - start > 10_000) {
+        console.warn("Shutdown timed out waiting for observation queue.");
+        break;
+      }
+    }
+  };
+
   const server = http.createServer(async (req, res) => {
+    if (shuttingDown) {
+      sendJson(res, 503, { error: "server shutting down" });
+      return;
+    }
     if (!req.url) {
       sendJson(res, 400, { error: "missing url" });
       return;
@@ -711,6 +737,37 @@ async function main(): Promise<void> {
     }
 
     sendJson(res, 404, { error: "not found" });
+  });
+
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    console.log(`Received ${signal}, shutting down worker...`);
+
+    const timeout = setTimeout(() => {
+      console.warn("Shutdown timed out; forcing exit.");
+      process.exit(1);
+    }, 12_000);
+
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+    });
+    await waitForQueueDrain();
+    try {
+      saveDb(dbCtx);
+    } catch (err) {
+      console.error("Failed to save db during shutdown:", err);
+    }
+    clearTimeout(timeout);
+    process.exit(0);
+  };
+
+  ["SIGINT", "SIGTERM", "SIGBREAK"].forEach((signal) => {
+    process.on(signal, () => {
+      void shutdown(signal);
+    });
   });
 
   server.listen(PORT, () => {

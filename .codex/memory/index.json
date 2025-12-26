@@ -1,0 +1,14 @@
+{
+  "goal": ["project.goal"],
+  "dependencies": ["decisions.dependencies"],
+  "architecture": ["architecture.core", "architecture.hooks", "architecture.compression", "architecture.privacy", "worker.shutdown"],
+  "schema": ["schema.sessions"],
+  "search": ["search.hybrid"],
+  "injection": ["injection.format"],
+  "config": ["config.parser", "hooks.codex"],
+  "hooks": ["architecture.hooks", "hooks.codex", "hooks.exec"],
+  "viewer": ["viewer.ui"],
+  "issues": ["issues.parity", "issues.roadmap", "issues.quality"],
+  "fixes": ["fixes.recent"],
+  "process": ["process.mcp", "tooling.bd"]
+}
