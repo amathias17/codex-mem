@@ -48,16 +48,19 @@ node dist/hooks/codex-session-start.js
 node dist/hooks/prompt-submit.js
 node dist/hooks/post-tool-use.js
 node dist/hooks/codex-post-tool-use.js
+node dist/hooks/codex-notify.js
+node dist/hooks/codex-exec-json.js
 node dist/hooks/stop.js
 node dist/hooks/session-end.js
 ```
 
-Each hook accepts JSON on stdin. Fields:
+Each hook accepts JSON on stdin unless noted. Fields:
 - `session-start`: `codex_session_id`, `project_id`
 - `codex-session-start`: accepts Codex session payloads (including nested `payload`/`data`) and forwards `project_id` + `codex_session_id`
 - `prompt-submit`: `session_id`, `project_id`, `prompt_text`, `prompt_number`
 - `post-tool-use`: `session_id`, `project_id`, `prompt_number`, `type`, `title`, `body`, `tags`, `files_read`, `files_modified`
 - `codex-post-tool-use`: accepts Codex tool payloads and forwards an observation (tool name + input/output)
+- `codex-exec-json`: reads `codex exec --json` JSONL from stdin and forwards per-tool observations
 - `stop`: `session_id`, `project_id`, `prompt_number`, `title`, `body`
 - `session-end`: `session_id`, `status`
 
@@ -68,6 +71,9 @@ Set `CODEX_MEM_HOOK_DEBUG=1` to log raw hook payloads to `.codex-mem/hooks.log`.
 Codex CLI notify hook (agent-turn-complete):
 - `codex-notify`: expects a JSON payload argument from `notify = ["node", "dist/hooks/codex-notify.js"]` and forwards a summarized observation.
   Payload fields include `type`, `thread-id`, `turn-id`, `cwd`, `input-messages`, and `last-assistant-message`.
+
+Codex exec JSONL ingestion (per-tool events):
+- `codex-exec-json`: run `codex exec --json ... | node dist/hooks/codex-exec-json.js` to forward per-tool observations.
 
 The worker URL defaults to `http://localhost:37777` and can be overridden with `CODEX_MEM_URL`.
 
