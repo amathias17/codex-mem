@@ -29,6 +29,8 @@ Start the worker:
 npm run worker
 ```
 
+Open `http://localhost:37777` to browse stored observations and summaries.
+
 ## Compression
 
 Observations are compressed before storage. The current compressor is heuristic-only

@@ -634,3 +634,98 @@ export function insertSessionSummary(ctx: DbContext, input: {
   stmt.free();
   return id;
 }
+
+export function listObservations(ctx: DbContext, input: {
+  projectId?: string;
+  limit: number;
+  offset: number;
+}): ObservationRow[] {
+  const rows: ObservationRow[] = [];
+  let stmt;
+  if (input.projectId) {
+    stmt = ctx.db.prepare(`
+      SELECT *
+      FROM observations
+      WHERE project_id = ?
+      ORDER BY created_at_epoch DESC
+      LIMIT ? OFFSET ?;
+    `);
+    stmt.bind([input.projectId, input.limit, input.offset]);
+  } else {
+    stmt = ctx.db.prepare(`
+      SELECT *
+      FROM observations
+      ORDER BY created_at_epoch DESC
+      LIMIT ? OFFSET ?;
+    `);
+    stmt.bind([input.limit, input.offset]);
+  }
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject() as ObservationRow);
+  }
+  stmt.free();
+  return rows;
+}
+
+export function getObservation(ctx: DbContext, id: string): ObservationRow | null {
+  const stmt = ctx.db.prepare("SELECT * FROM observations WHERE id = ?;");
+  stmt.bind([id]);
+  let row: ObservationRow | null = null;
+  if (stmt.step()) {
+    row = stmt.getAsObject() as ObservationRow;
+  }
+  stmt.free();
+  return row;
+}
+
+export function listSessionSummaries(ctx: DbContext, input: {
+  projectId?: string;
+  limit: number;
+  offset: number;
+}): SessionSummaryRow[] {
+  const rows: SessionSummaryRow[] = [];
+  let stmt;
+  if (input.projectId) {
+    stmt = ctx.db.prepare(`
+      SELECT *
+      FROM session_summaries
+      WHERE project_id = ?
+      ORDER BY created_at_epoch DESC
+      LIMIT ? OFFSET ?;
+    `);
+    stmt.bind([input.projectId, input.limit, input.offset]);
+  } else {
+    stmt = ctx.db.prepare(`
+      SELECT *
+      FROM session_summaries
+      ORDER BY created_at_epoch DESC
+      LIMIT ? OFFSET ?;
+    `);
+    stmt.bind([input.limit, input.offset]);
+  }
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject() as SessionSummaryRow);
+  }
+  stmt.free();
+  return rows;
+}
+
+export function listProjects(ctx: DbContext): string[] {
+  const rows: string[] = [];
+  const stmt = ctx.db.prepare(`
+    SELECT DISTINCT project_id FROM observations
+    UNION
+    SELECT DISTINCT project_id FROM session_summaries
+    UNION
+    SELECT DISTINCT project_id FROM user_prompts
+    ORDER BY project_id ASC;
+  `);
+  while (stmt.step()) {
+    const row = stmt.getAsObject() as { project_id?: string };
+    if (row.project_id) {
+      rows.push(row.project_id);
+    }
+  }
+  stmt.free();
+  return rows;
+}
