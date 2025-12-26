@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { load } from "js-toml";
 
 export type Config = {
   projectId: string;
@@ -24,26 +25,66 @@ const DEFAULT_CONFIG: Omit<Config, "dataDir"> = {
 };
 
 const CONFIG_FILE = "config.toml";
+const KNOWN_KEYS = new Set([
+  "project_id",
+  "max_inject_tokens",
+  "recency_days",
+  "auto_inject",
+  "redaction_patterns"
+]);
 
-function parseTomlValue(raw: string): string | number | boolean | string[] {
-  const trimmed = raw.trim();
-  if (trimmed === "true" || trimmed === "false") {
-    return trimmed === "true";
+function parseConfigOverrides(raw: unknown, configPath: string): Partial<Config> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Config file ${configPath} must contain a TOML table at the root.`);
   }
-  if (/^-?\\d+$/.test(trimmed)) {
-    return Number(trimmed);
+  const data = raw as Record<string, unknown>;
+  const unknownKeys = Object.keys(data).filter((key) => !KNOWN_KEYS.has(key));
+  if (unknownKeys.length) {
+    throw new Error(`Unknown config keys in ${configPath}: ${unknownKeys.join(", ")}`);
   }
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-    const inner = trimmed.slice(1, -1).trim();
-    if (!inner) {
-      return [];
+
+  const overrides: Partial<Config> = {};
+  if ("project_id" in data) {
+    const value = data.project_id;
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(`config project_id must be a non-empty string.`);
     }
-    return inner
-      .split(",")
-      .map((part) => part.trim())
-      .map((part) => part.replace(/^\"|\"$/g, ""));
+    overrides.projectId = value;
   }
-  return trimmed.replace(/^\"|\"$/g, "");
+
+  if ("max_inject_tokens" in data) {
+    const value = data.max_inject_tokens;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      throw new Error(`config max_inject_tokens must be a positive number.`);
+    }
+    overrides.maxInjectTokens = value;
+  }
+
+  if ("recency_days" in data) {
+    const value = data.recency_days;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      throw new Error(`config recency_days must be a positive number.`);
+    }
+    overrides.recencyDays = value;
+  }
+
+  if ("auto_inject" in data) {
+    const value = data.auto_inject;
+    if (typeof value !== "boolean") {
+      throw new Error(`config auto_inject must be true or false.`);
+    }
+    overrides.autoInject = value;
+  }
+
+  if ("redaction_patterns" in data) {
+    const value = data.redaction_patterns;
+    if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+      throw new Error(`config redaction_patterns must be an array of strings.`);
+    }
+    overrides.redactionPatterns = value;
+  }
+
+  return overrides;
 }
 
 export function loadConfig(cwd: string): Config {
@@ -56,29 +97,22 @@ export function loadConfig(cwd: string): Config {
   }
 
   const content = fs.readFileSync(configPath, "utf8");
-  const lines = content.split(/\r?\n/);
-  const parsed: Record<string, string | number | boolean | string[]> = {};
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) {
-      continue;
-    }
-    const eqIndex = trimmed.indexOf("=");
-    if (eqIndex === -1) {
-      continue;
-    }
-    const key = trimmed.slice(0, eqIndex).trim();
-    const value = trimmed.slice(eqIndex + 1).trim();
-    parsed[key] = parseTomlValue(value);
+  let parsed: unknown;
+  try {
+    parsed = load(content);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to parse ${configPath}: ${message}`);
   }
+  const overrides = parseConfigOverrides(parsed, configPath);
 
   return {
-    projectId: (parsed.project_id as string) || base.projectId,
+    projectId: overrides.projectId || base.projectId,
     dataDir,
-    maxInjectTokens: (parsed.max_inject_tokens as number) || base.maxInjectTokens,
-    recencyDays: (parsed.recency_days as number) || base.recencyDays,
-    autoInject: (parsed.auto_inject as boolean) ?? base.autoInject,
-    redactionPatterns: (parsed.redaction_patterns as string[]) || base.redactionPatterns
+    maxInjectTokens: overrides.maxInjectTokens || base.maxInjectTokens,
+    recencyDays: overrides.recencyDays || base.recencyDays,
+    autoInject: overrides.autoInject ?? base.autoInject,
+    redactionPatterns: overrides.redactionPatterns || base.redactionPatterns
   };
 }
 

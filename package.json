@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "commander": "^12.1.0",
+    "js-toml": "^1.0.2",
     "sql.js": "^1.10.2"
   },
   "devDependencies": {
