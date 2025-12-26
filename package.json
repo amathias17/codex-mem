@@ -8,6 +8,7 @@
   "type": "commonjs",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.js",
     "start": "node dist/cli.js",
     "dev": "tsc -w -p tsconfig.json",
     "worker": "node dist/worker.js",

@@ -22,22 +22,20 @@ Use these MCPs in this order for new work:
 1) `list_mcp_resources` and `list_mcp_resource_templates` to confirm what is available.
 2) `mcp__deepwiki__ask_question` to pull authoritative repo-specific behavior and schemas.
 3) `mcp__context7__resolve-library-id` then `mcp__context7__get-library-docs` for library-specific API details.
-4) `mcp__astrodocs__search_astro_docs` only when Astro-specific questions are relevant.
-5) `mcp__playwright__browser_navigate` + `mcp__playwright__browser_snapshot` + `mcp__playwright__browser_close` for UI or web validation.
-6) `mcp__sequential-thinking__sequentialthinking` for short planning (3-5 bullets max).
+4) `mcp__sequential-thinking__sequentialthinking` for short planning (3-5 bullets max).
 
 How to use:
 - DeepWiki: Ask for table schemas, lifecycle hooks, or architectural patterns.
 - Context7: Resolve the library first, then fetch docs for the exact topic.
-- Astro docs: Use for Astro config/build questions only.
-- Playwright: Use for web validation; keep to minimal navigation for speed.
+- Astro docs: Skipped for this project per instruction.
+- Playwright: Skipped for this project per instruction.
 
 Required MCP workflow:
 - Always run `list_mcp_resources` and `list_mcp_resource_templates` first.
 - Use `mcp__deepwiki__ask_question` before any schema or architecture changes.
 - Use `mcp__context7__resolve-library-id` + `mcp__context7__get-library-docs` before using unfamiliar library APIs.
-- Only run `mcp__astrodocs__search_astro_docs` for Astro-related tasks.
-- Use Playwright only when validating web behavior or UI content.
+- Do not run `mcp__astrodocs__search_astro_docs` for this project.
+- Do not run Playwright MCPs for this project.
 - Use `mcp__sequential-thinking__sequentialthinking` only for short planning (3–5 bullets).
 
 ## Beads Task Completion Workflow
