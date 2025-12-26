@@ -129,7 +129,7 @@ export function writeDefaultConfig(cwd: string): string {
     `recency_days = ${DEFAULT_CONFIG.recencyDays}`,
     `auto_inject = ${DEFAULT_CONFIG.autoInject}`,
     `redaction_patterns = [${DEFAULT_CONFIG.redactionPatterns
-      .map((p) => `"${p}"`)
+      .map((p) => `'${p.replace(/'/g, "''")}'`)
       .join(", ")}]`
   ].join("\n");
 

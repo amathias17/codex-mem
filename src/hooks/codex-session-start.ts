@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   logHookPayload("codex-session-start", payload, raw);
   const projectId = pickString(payload, ["project_id", "projectId", "project", "repo"])
     || getValue(payload, "project_id", "CODEX_PROJECT_ID");
-  const codexSessionId = pickString(payload, ["codex_session_id", "session_id", "sessionId", "id"])
+  const codexSessionId = pickString(payload, ["codex_session_id", "session_id", "sessionId", "thread_id", "threadId", "thread-id", "id"])
     || getValue(payload, "codex_session_id", "CODEX_SESSION_ID");
 
   const response = await postJson("/api/sessions/init", {

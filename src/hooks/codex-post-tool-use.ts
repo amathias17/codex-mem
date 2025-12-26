@@ -81,11 +81,11 @@ async function main(): Promise<void> {
   const payload = unwrapPayload(input);
   logHookPayload("codex-post-tool-use", payload, raw);
 
-  const sessionId = pickString(payload, ["session_id", "sessionId", "session"])
+  const sessionId = pickString(payload, ["session_id", "sessionId", "session", "thread_id", "threadId", "thread-id"])
     || getValue(payload, "session_id", "CODEX_MEM_SESSION_ID");
   const projectId = pickString(payload, ["project_id", "projectId", "project", "repo"])
     || getValue(payload, "project_id", "CODEX_PROJECT_ID");
-  const promptNumber = pickNumber(payload, ["prompt_number", "promptNumber", "turn_number", "turnNumber"])
+  const promptNumber = pickNumber(payload, ["prompt_number", "promptNumber", "turn_number", "turnNumber", "turn_id", "turnId", "turn-id"])
     ?? getNumber(payload, "prompt_number");
 
   if (!sessionId) {

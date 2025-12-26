@@ -61,10 +61,13 @@ Each hook accepts JSON on stdin. Fields:
 - `stop`: `session_id`, `project_id`, `prompt_number`, `title`, `body`
 - `session-end`: `session_id`, `status`
 
+Codex CLI currently supports only the `notify` hook, not `session_start` or `post_tool_use`.
+
 Set `CODEX_MEM_HOOK_DEBUG=1` to log raw hook payloads to `.codex-mem/hooks.log`.
 
 Codex CLI notify hook (agent-turn-complete):
 - `codex-notify`: expects a JSON payload argument from `notify = ["node", "dist/hooks/codex-notify.js"]` and forwards a summarized observation.
+  Payload fields include `type`, `thread-id`, `turn-id`, `cwd`, `input-messages`, and `last-assistant-message`.
 
 The worker URL defaults to `http://localhost:37777` and can be overridden with `CODEX_MEM_URL`.
 
