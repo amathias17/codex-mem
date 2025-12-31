@@ -84,11 +84,18 @@ function collectCandidateIds(
   return null;
 }
 
-const CONFIG_PATH = path.resolve(process.cwd(), "codex-mem.config.json");
+const DEFAULT_CONFIG_PATH = path.resolve(__dirname, "..", "codex-mem.config.json");
+const CONFIG_PATH = process.env.CODEX_MEM_CONFIG ?? DEFAULT_CONFIG_PATH;
 
 async function loadConfig(): Promise<CodexMemConfig> {
   const raw = await fs.readFile(CONFIG_PATH, "utf8");
-  return JSON.parse(raw) as CodexMemConfig;
+  const parsed = JSON.parse(raw) as CodexMemConfig;
+  const baseDir = path.dirname(CONFIG_PATH);
+  return {
+    ...parsed,
+    memoryFile: path.isAbsolute(parsed.memoryFile) ? parsed.memoryFile : path.resolve(baseDir, parsed.memoryFile),
+    indexFile: path.isAbsolute(parsed.indexFile) ? parsed.indexFile : path.resolve(baseDir, parsed.indexFile),
+  };
 }
 
 function jsonResponse(id: JsonRpcRequest["id"], result: unknown) {
