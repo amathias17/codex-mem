@@ -1,0 +1,25 @@
+{
+  "memoryFile": "data/memory.jsonl",
+  "indexFile": "data/index.json",
+  "summarization": {
+    "maxContentLength": 600,
+    "olderThanDays": 30
+  },
+  "prune": {
+    "maxPerScope": 200,
+    "deleteOlderThanDays": 365,
+    "compressOlderThanDays": 60,
+    "dedupe": true
+  },
+  "scoring": {
+    "scope": 2.0,
+    "tag": 1.5,
+    "recency": 1.0,
+    "importance": 1.2,
+    "text": 1.4,
+    "halfLifeDays": 30
+  },
+  "retrieval": {
+    "defaultLimit": 20
+  }
+}
