@@ -106,8 +106,17 @@ function jsonError(id: JsonRpcRequest["id"], code: number, message: string, data
   return { jsonrpc: "2.0", id, error: { code, message, data } };
 }
 
+type FramingMode = "line" | "header";
+
+let framingMode: FramingMode = "line";
+
 function send(payload: unknown) {
   const body = JSON.stringify(payload);
+  if (framingMode === "header") {
+    const header = `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n`;
+    process.stdout.write(header + body);
+    return;
+  }
   process.stdout.write(`${body}\n`);
 }
 
@@ -128,6 +137,7 @@ function readMessages(onMessage: (msg: JsonRpcRequest) => void) {
       }
 
       if (headerEnd !== -1) {
+        framingMode = "header";
         const header = buffer.slice(0, headerEnd).toString("utf8");
         const match = /Content-Length: (\d+)/i.exec(header);
         if (!match) {
@@ -153,6 +163,7 @@ function readMessages(onMessage: (msg: JsonRpcRequest) => void) {
       lineBuffer += chunkText;
       let newlineIndex = lineBuffer.indexOf("\n");
       while (newlineIndex !== -1) {
+        framingMode = "line";
         const line = lineBuffer.slice(0, newlineIndex).trim();
         lineBuffer = lineBuffer.slice(newlineIndex + 1);
         if (line.length > 0) {
