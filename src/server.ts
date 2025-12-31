@@ -118,18 +118,23 @@ function readMessages(onMessage: (msg: JsonRpcRequest) => void) {
     const chunkBuffer = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk;
     buffer = Buffer.concat([buffer, chunkBuffer]);
     while (true) {
-      const headerEnd = buffer.indexOf("\r\n\r\n");
+      let headerEnd = buffer.indexOf("\r\n\r\n");
+      let delimiterLength = 4;
+      if (headerEnd === -1) {
+        headerEnd = buffer.indexOf("\n\n");
+        delimiterLength = 2;
+      }
       if (headerEnd === -1) return;
       const header = buffer.slice(0, headerEnd).toString("utf8");
       const match = /Content-Length: (\d+)/i.exec(header);
       if (!match) {
-        buffer = buffer.slice(headerEnd + 4);
+        buffer = buffer.slice(headerEnd + delimiterLength);
         continue;
       }
       const length = Number.parseInt(match[1], 10);
-      const totalLength = headerEnd + 4 + length;
+      const totalLength = headerEnd + delimiterLength + length;
       if (buffer.length < totalLength) return;
-      const body = buffer.slice(headerEnd + 4, totalLength).toString("utf8");
+      const body = buffer.slice(headerEnd + delimiterLength, totalLength).toString("utf8");
       buffer = buffer.slice(totalLength);
       try {
         const message = JSON.parse(body) as JsonRpcRequest;
