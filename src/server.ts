@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import assert from "assert";
 import {
   CodexMemConfig,
   MemoryPatch,
@@ -10,6 +11,8 @@ import {
   addMemoryItem,
   getMemoryItem,
   listMemoryItems,
+  readAllItems,
+  readLatestItems,
   updateMemoryItem,
 } from "./memory-store";
 import { loadIndex, rebuildIndex, updateIndexFromItems } from "./indexer";
@@ -341,10 +344,116 @@ async function runSanityCheck(config: CodexMemConfig) {
   return { ok: true };
 }
 
+function createTestItem(overrides: Partial<ReturnType<typeof createBaseItem>> = {}) {
+  return { ...createBaseItem(), ...overrides };
+}
+
+function createBaseItem() {
+  return {
+    id: "test-id",
+    createdAt: new Date("2020-01-01T00:00:00.000Z").toISOString(),
+    updatedAt: new Date("2020-01-01T00:00:00.000Z").toISOString(),
+    scope: "test-scope",
+    tags: ["alpha"],
+    content: "Base content",
+    summary: null,
+    metadata: null,
+    importance: 0.5,
+    deleted: false,
+  };
+}
+
+async function runTests(config: CodexMemConfig) {
+  const tempDir = await fs.mkdtemp(path.join(path.dirname(config.memoryFile), "tests-"));
+  const tempConfig: CodexMemConfig = {
+    ...config,
+    memoryFile: path.join(tempDir, "memory.jsonl"),
+    indexFile: path.join(tempDir, "index.json"),
+  };
+
+  const now = new Date("2025-01-01T00:00:00.000Z");
+
+  const itemA = await addMemoryItem(tempConfig.memoryFile, {
+    scope: "scope-a",
+    tags: ["alpha", "beta"],
+    content: "First content",
+    importance: 0.9,
+  });
+  const itemB = await addMemoryItem(tempConfig.memoryFile, {
+    scope: "scope-a",
+    tags: ["beta"],
+    content: "Second content",
+    importance: 0.2,
+  });
+
+  const updated = await updateMemoryItem(tempConfig.memoryFile, itemB.id, { content: "Updated content" });
+  assert.ok(updated, "Expected update to return item");
+
+  const latest = await readLatestItems(tempConfig.memoryFile);
+  const latestB = latest.items.find((item) => item.id === itemB.id);
+  assert.strictEqual(latestB?.content, "Updated content");
+
+  await rebuildIndex(tempConfig.memoryFile, tempConfig.indexFile);
+  const index = await loadIndex(tempConfig.indexFile);
+  assert.ok(index.byScope["scope-a"].includes(itemA.id));
+  assert.ok(index.byTag["beta"].includes(itemB.id));
+
+  const searchResults = searchMemory(latest.items, { scope: "scope-a", tags: ["beta"], text: "content", now }, tempConfig.scoring);
+  assert.strictEqual(searchResults[0].item.id, itemA.id);
+
+  const corruptedItem = createTestItem({ id: "good-id", scope: "corrupt-scope" });
+  const badLine = "{bad json";
+  const goodLine = JSON.stringify(corruptedItem);
+  await fs.writeFile(tempConfig.memoryFile, `${badLine}\n${goodLine}\n`, "utf8");
+  const readAll = await readAllItems(tempConfig.memoryFile);
+  assert.strictEqual(readAll.items.length, 1);
+  assert.strictEqual(readAll.errors.length, 1);
+
+  const duplicate1 = createTestItem({
+    id: "dup-1",
+    content: "Same content",
+    scope: "dup-scope",
+    updatedAt: "2020-01-01T00:00:00.000Z",
+    importance: 0.9,
+  });
+  const duplicate2 = createTestItem({
+    id: "dup-2",
+    content: "Same content",
+    scope: "dup-scope",
+    updatedAt: "2020-01-02T00:00:00.000Z",
+    importance: 0.8,
+  });
+  const oldItem = createTestItem({
+    id: "old-1",
+    scope: "dup-scope",
+    content: "X".repeat(800),
+    updatedAt: "2020-01-03T00:00:00.000Z",
+    importance: 0.1,
+  });
+  const pruneConfig = {
+    ...tempConfig.prune,
+    maxPerScope: 1,
+    compressOlderThanDays: 1,
+    deleteOlderThanDays: 9999,
+  };
+  const pruneResult = pruneMemory([duplicate1, duplicate2, oldItem], pruneConfig, tempConfig.summarization, new Date("2025-01-10T00:00:00.000Z"));
+  assert.ok(pruneResult.actions.some((action) => action.id === "dup-2" && action.patch.deleted));
+  assert.ok(pruneResult.actions.some((action) => action.id === "old-1" && typeof action.patch.summary === "string"));
+
+  await fs.rm(tempDir, { recursive: true, force: true });
+  return { ok: true };
+}
+
 async function main() {
   const config = await loadConfig();
   if (process.argv.includes("--sanity")) {
     const result = await runSanityCheck(config);
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify(result));
+    return;
+  }
+  if (process.argv.includes("--tests")) {
+    const result = await runTests(config);
     // eslint-disable-next-line no-console
     console.log(JSON.stringify(result));
     return;

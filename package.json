@@ -5,7 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "build": "tsc",
-    "sanity": "node dist/server.js --sanity"
+    "sanity": "node dist/server.js --sanity",
+    "test": "node dist/server.js --tests"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",
