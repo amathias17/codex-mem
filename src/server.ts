@@ -12,7 +12,7 @@ import {
   listMemoryItems,
   updateMemoryItem,
 } from "./memory-store";
-import { rebuildIndex, updateIndexFromItems } from "./indexer";
+import { loadIndex, rebuildIndex, updateIndexFromItems } from "./indexer";
 import { searchMemory } from "./retriever";
 import { pruneMemory } from "./prune";
 
@@ -26,6 +26,59 @@ interface JsonRpcRequest {
 interface ToolCallParams {
   name: string;
   arguments?: Record<string, unknown>;
+}
+
+function intersectIds(base: Set<string>, ids: string[]): Set<string> {
+  const next = new Set<string>();
+  for (const id of ids) {
+    if (base.has(id)) {
+      next.add(id);
+    }
+  }
+  return next;
+}
+
+function collectCandidateIds(
+  index: { byScope: Record<string, string[]>; byTag: Record<string, string[]>; byScopeTag: Record<string, Record<string, string[]>> },
+  scope?: string,
+  tags?: string[],
+): Set<string> | null {
+  const normalizedTags = tags ?? [];
+  if (!scope && normalizedTags.length === 0) return null;
+
+  if (scope && normalizedTags.length > 0) {
+    let candidate: Set<string> | null = null;
+    for (const tag of normalizedTags) {
+      const scoped = index.byScopeTag[scope]?.[tag] ?? [];
+      if (!candidate) {
+        candidate = new Set(scoped);
+      } else {
+        candidate = intersectIds(candidate, scoped);
+      }
+      if (candidate.size === 0) return candidate;
+    }
+    return candidate ?? new Set<string>();
+  }
+
+  if (scope) {
+    return new Set(index.byScope[scope] ?? []);
+  }
+
+  if (normalizedTags.length > 0) {
+    let candidate: Set<string> | null = null;
+    for (const tag of normalizedTags) {
+      const ids = index.byTag[tag] ?? [];
+      if (!candidate) {
+        candidate = new Set(ids);
+      } else {
+        candidate = intersectIds(candidate, ids);
+      }
+      if (candidate.size === 0) return candidate;
+    }
+    return candidate ?? new Set<string>();
+  }
+
+  return null;
 }
 
 const CONFIG_PATH = path.resolve(process.cwd(), "codex-mem.config.json");
@@ -185,13 +238,28 @@ async function handleToolCall(params: ToolCallParams, config: CodexMemConfig) {
       return { item };
     }
     case "memory.search": {
-      const scope = typeof params.arguments?.scope === "string" ? params.arguments.scope : undefined;
-      const tags = Array.isArray(params.arguments?.tags) ? (params.arguments?.tags as string[]) : undefined;
+      const scopeInput = typeof params.arguments?.scope === "string" ? params.arguments.scope : undefined;
+      const scope = scopeInput ? normalizeScope(scopeInput) : undefined;
+      const tagsInput = Array.isArray(params.arguments?.tags) ? (params.arguments?.tags as string[]) : undefined;
+      const tags = tagsInput ? normalizeTags(tagsInput) : undefined;
       const query = typeof params.arguments?.query === "string" ? params.arguments.query : undefined;
       const limit = typeof params.arguments?.limit === "number" ? params.arguments.limit : config.retrieval.defaultLimit;
       const includeDeleted = typeof params.arguments?.includeDeleted === "boolean" ? params.arguments.includeDeleted : false;
       const list = await listMemoryItems(memoryFile);
-      const results = searchMemory(list.items, { scope, tags, text: query, limit, includeDeleted }, config.scoring);
+      let items = list.items;
+
+      if (!includeDeleted && (scope || (tags && tags.length > 0))) {
+        const index = await loadIndex(indexFile);
+        const candidates = collectCandidateIds(index, scope, tags);
+        if (candidates) {
+          if (candidates.size === 0) {
+            return { results: [] };
+          }
+          items = items.filter((item) => candidates.has(item.id));
+        }
+      }
+
+      const results = searchMemory(items, { scope, tags, text: query, limit, includeDeleted }, config.scoring);
       return { results };
     }
     case "memory.get": {
