@@ -9,7 +9,7 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>         # Complete work
-bd sync               # Sync with git (requires SQLite mode; see Landing the Plane)
+bd sync               # Sync with git
 ```
 
 ## Issue Tracking with bd (beads)
@@ -81,9 +81,6 @@ bd automatically syncs with git:
 - Imports from JSONL when newer (e.g., after `git pull`)
 - No manual export/import needed!
 
-**Note:** This repo is configured with `no-db: true` in `.beads/config.yaml` (JSONL-only mode).
-`bd sync` / import operations currently require the SQLite backend and will fail in no-db mode.
-Use git to move `.beads/issues.jsonl` between machines and keep it committed with code changes.
 
 ### GitHub Copilot Integration
 
@@ -170,8 +167,7 @@ For more details, see README.md and QUICKSTART.md.
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   # NOTE: In JSONL-only mode (no-db: true), bd sync is not supported.
-   # Ensure .beads/issues.jsonl is committed with your code changes.
+   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
