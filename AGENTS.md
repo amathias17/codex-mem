@@ -1,6 +1,7 @@
 # Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. 
+Agents must read `specifications.md` before starting implementation work.
 
 ## Quick Reference
 

@@ -50,6 +50,11 @@ node dist/server.js --sanity
   },
   "retrieval": {
     "defaultLimit": 20
+  },
+  "maintenance": {
+    "maxLineRatio": 2,
+    "minLines": 200,
+    "maxBytes": 5000000
   }
 }
 ```
@@ -156,6 +161,31 @@ Input schema:
 {
   "type": "object",
   "properties": {}
+}
+```
+
+### memory.health
+Reports memory file health and compaction recommendations.
+
+Input schema:
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+### memory.repair
+Repairs corrupted JSONL by quarantining invalid lines and optionally compacting.
+
+Input schema:
+```json
+{
+  "type": "object",
+  "properties": {
+    "compact": { "type": "boolean" },
+    "quarantine": { "type": "boolean" }
+  }
 }
 ```
 

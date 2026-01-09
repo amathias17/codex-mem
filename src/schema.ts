@@ -54,6 +54,12 @@ export interface RetrievalConfig {
   defaultLimit: number;
 }
 
+export interface MaintenanceConfig {
+  maxLineRatio: number;
+  minLines: number;
+  maxBytes: number;
+}
+
 export interface CodexMemConfig {
   memoryFile: string;
   indexFile: string;
@@ -61,6 +67,7 @@ export interface CodexMemConfig {
   prune: PruneConfig;
   scoring: ScoringConfig;
   retrieval: RetrievalConfig;
+  maintenance?: Partial<MaintenanceConfig>;
 }
 
 export const MEMORY_INDEX_VERSION = 1 as const;

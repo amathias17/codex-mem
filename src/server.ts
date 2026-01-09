@@ -10,9 +10,11 @@ import {
 import {
   addMemoryItem,
   getMemoryItem,
+  getMemoryHealth,
   listMemoryItems,
   readAllItems,
   readLatestItems,
+  repairMemoryFile,
   updateMemoryItem,
 } from "./memory-store";
 import { loadIndex, rebuildIndex, updateIndexFromItems } from "./indexer";
@@ -86,6 +88,7 @@ function collectCandidateIds(
 
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, "..", "codex-mem.config.json");
 const CONFIG_PATH = process.env.CODEX_MEM_CONFIG ?? DEFAULT_CONFIG_PATH;
+const DEFAULT_MAINTENANCE = { maxLineRatio: 2, minLines: 200, maxBytes: 5_000_000 };
 
 async function loadConfig(): Promise<CodexMemConfig> {
   const raw = await fs.readFile(CONFIG_PATH, "utf8");
@@ -95,6 +98,7 @@ async function loadConfig(): Promise<CodexMemConfig> {
     ...parsed,
     memoryFile: path.isAbsolute(parsed.memoryFile) ? parsed.memoryFile : path.resolve(baseDir, parsed.memoryFile),
     indexFile: path.isAbsolute(parsed.indexFile) ? parsed.indexFile : path.resolve(baseDir, parsed.indexFile),
+    maintenance: { ...DEFAULT_MAINTENANCE, ...(parsed.maintenance ?? {}) },
   };
 }
 
@@ -260,6 +264,22 @@ const TOOLS = [
     description: "Rebuild the memory index from the JSONL store",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "memory.health",
+    description: "Report memory file health and compaction recommendations",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "memory.repair",
+    description: "Repair corrupted JSONL by quarantining invalid lines and optionally compacting",
+    inputSchema: {
+      type: "object",
+      properties: {
+        compact: { type: "boolean" },
+        quarantine: { type: "boolean" },
+      },
+    },
+  },
 ];
 
 async function handleToolCall(params: ToolCallParams, config: CodexMemConfig) {
@@ -358,6 +378,21 @@ async function handleToolCall(params: ToolCallParams, config: CodexMemConfig) {
       const index = await rebuildIndex(memoryFile, indexFile);
       return { index };
     }
+    case "memory.health": {
+      const maintenance = config.maintenance ?? DEFAULT_MAINTENANCE;
+      const health = await getMemoryHealth(memoryFile, maintenance);
+      return { health };
+    }
+    case "memory.repair": {
+      const compact = typeof params.arguments?.compact === "boolean" ? params.arguments.compact : false;
+      const quarantine = typeof params.arguments?.quarantine === "boolean" ? params.arguments.quarantine : true;
+      const result = await repairMemoryFile(memoryFile, { compact, quarantine });
+      if (result.repaired || result.compacted) {
+        const index = await rebuildIndex(memoryFile, indexFile);
+        return { ...result, index };
+      }
+      return result;
+    }
     default:
       throw new Error(`Unknown tool: ${params.name}`);
   }
@@ -454,6 +489,15 @@ async function runTests(config: CodexMemConfig) {
   const readAll = await readAllItems(tempConfig.memoryFile);
   assert.strictEqual(readAll.items.length, 1);
   assert.strictEqual(readAll.errors.length, 1);
+  assert.ok(readAll.stats.invalidLines > 0);
+
+  const repair = await repairMemoryFile(tempConfig.memoryFile, { quarantine: true });
+  assert.ok(repair.repaired);
+  assert.ok(repair.quarantinedFile);
+  const repairedRead = await readAllItems(tempConfig.memoryFile);
+  assert.strictEqual(repairedRead.stats.invalidLines, 0);
+  const health = await getMemoryHealth(tempConfig.memoryFile, { maxLineRatio: 1, minLines: 1, maxBytes: 1 });
+  assert.ok(health.shouldCompact);
 
   const duplicate1 = createTestItem({
     id: "dup-1",
