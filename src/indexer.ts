@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { MemoryIndex, MemoryItem, MEMORY_INDEX_VERSION } from "./schema";
 import { readLatestItems } from "./memory-store";
+import { withFileLock } from "./file-lock";
 
 function createEmptyIndex(): MemoryIndex {
   return {
@@ -37,9 +38,32 @@ export async function loadIndex(indexFile: string): Promise<MemoryIndex> {
 }
 
 export async function saveIndex(indexFile: string, index: MemoryIndex): Promise<void> {
-  await ensureIndexFile(indexFile);
+  await fs.mkdir(path.dirname(indexFile), { recursive: true });
   const updated = { ...index, updatedAt: new Date().toISOString() };
-  await fs.writeFile(indexFile, JSON.stringify(updated, null, 2), "utf8");
+  const tempFile = `${indexFile}.tmp`;
+  const backupFile = `${indexFile}.bak.${Date.now()}`;
+  let backupCreated = false;
+
+  await fs.writeFile(tempFile, JSON.stringify(updated, null, 2), "utf8");
+  try {
+    await fs.rename(indexFile, backupFile);
+    backupCreated = true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
+  try {
+    await fs.rename(tempFile, indexFile);
+  } catch (error) {
+    if (backupCreated) {
+      await fs.rename(backupFile, indexFile).catch(() => undefined);
+    }
+    throw error;
+  }
+  if (backupCreated) {
+    await fs.rm(backupFile, { force: true });
+  }
 }
 
 function removeIdFromIndex(index: MemoryIndex, id: string): void {
@@ -112,25 +136,29 @@ export function buildIndex(items: MemoryItem[]): MemoryIndex {
 }
 
 export async function rebuildIndex(memoryFile: string, indexFile: string): Promise<MemoryIndex> {
-  const latest = await readLatestItems(memoryFile);
-  const index = buildIndex(latest.items);
-  await saveIndex(indexFile, index);
-  return index;
+  return withFileLock(indexFile, async () => {
+    const latest = await readLatestItems(memoryFile);
+    const index = buildIndex(latest.items);
+    await saveIndex(indexFile, index);
+    return index;
+  });
 }
 
 export async function updateIndexFromItems(indexFile: string, items: MemoryItem[]): Promise<MemoryIndex> {
-  const index = await loadIndex(indexFile);
-  const itemsById = new Map<string, MemoryItem>();
+  return withFileLock(indexFile, async () => {
+    const index = await loadIndex(indexFile);
+    const itemsById = new Map<string, MemoryItem>();
 
-  for (const item of items) {
-    itemsById.set(item.id, item);
-    removeIdFromIndex(index, item.id);
-    if (!item.deleted) {
-      addIdToIndex(index, item);
+    for (const item of items) {
+      itemsById.set(item.id, item);
+      removeIdFromIndex(index, item.id);
+      if (!item.deleted) {
+        addIdToIndex(index, item);
+      }
     }
-  }
 
-  sortIndex(index, itemsById);
-  await saveIndex(indexFile, index);
-  return index;
+    sortIndex(index, itemsById);
+    await saveIndex(indexFile, index);
+    return index;
+  });
 }

@@ -9,6 +9,7 @@ import {
   normalizeTags,
   validateMemoryItem,
 } from "./schema";
+import { withFileLock } from "./file-lock";
 
 export interface MemoryInput {
   scope: string;
@@ -87,9 +88,11 @@ export async function readLatestItems(memoryFile: string): Promise<ReadResult> {
 }
 
 async function appendItem(memoryFile: string, item: MemoryItem): Promise<void> {
-  await ensureFile(memoryFile);
-  const line = `${JSON.stringify(item)}\n`;
-  await fs.appendFile(memoryFile, line, "utf8");
+  await withFileLock(memoryFile, async () => {
+    await ensureFile(memoryFile);
+    const line = `${JSON.stringify(item)}\n`;
+    await fs.appendFile(memoryFile, line, "utf8");
+  });
 }
 
 export async function addMemoryItem(memoryFile: string, input: MemoryInput): Promise<MemoryItem> {
@@ -146,11 +149,13 @@ export async function listMemoryItems(memoryFile: string): Promise<ReadResult> {
 }
 
 export async function compactMemoryFile(memoryFile: string): Promise<void> {
-  const latest = await readLatestItems(memoryFile);
-  const tempFile = `${memoryFile}.tmp`;
-  const backupFile = `${memoryFile}.bak.${Date.now()}`;
+  await withFileLock(memoryFile, async () => {
+    const latest = await readLatestItems(memoryFile);
+    const tempFile = `${memoryFile}.tmp`;
+    const backupFile = `${memoryFile}.bak.${Date.now()}`;
 
-  await fs.writeFile(tempFile, latest.items.map((item) => JSON.stringify(item)).join("\n") + "\n", "utf8");
-  await fs.rename(memoryFile, backupFile);
-  await fs.rename(tempFile, memoryFile);
+    await fs.writeFile(tempFile, latest.items.map((item) => JSON.stringify(item)).join("\n") + "\n", "utf8");
+    await fs.rename(memoryFile, backupFile);
+    await fs.rename(tempFile, memoryFile);
+  });
 }
