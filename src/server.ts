@@ -124,6 +124,15 @@ function send(payload: unknown) {
   process.stdout.write(`${body}\n`);
 }
 
+function shouldRespond(id: JsonRpcRequest["id"]) {
+  return id !== undefined;
+}
+
+function sendError(id: JsonRpcRequest["id"], code: number, message: string, data?: unknown) {
+  if (!shouldRespond(id)) return;
+  send(jsonError(id ?? null, code, message, data));
+}
+
 function readMessages(onMessage: (msg: JsonRpcRequest) => void) {
   let buffer = Buffer.alloc(0);
   let lineBuffer = "";
@@ -550,38 +559,71 @@ async function main() {
   }
 
   readMessages(async (message) => {
+    if (!message || message.jsonrpc !== "2.0" || typeof message.method !== "string") {
+      sendError(message?.id ?? null, -32600, "Invalid Request");
+      return;
+    }
+
     if (message.method === "initialize") {
-      send(
-        jsonResponse(message.id, {
-          protocolVersion: "2024-11-05",
-          serverInfo: { name: "codex-mem", version: "0.1.0" },
-          capabilities: { tools: {} },
-        }),
-      );
+      if (shouldRespond(message.id)) {
+        send(
+          jsonResponse(message.id, {
+            protocolVersion: "2024-11-05",
+            serverInfo: { name: "codex-mem", version: "0.1.0" },
+            capabilities: { tools: {} },
+          }),
+        );
+      }
+      return;
+    }
+
+    if (message.method === "initialized") {
+      return;
+    }
+
+    if (message.method === "ping") {
+      if (shouldRespond(message.id)) {
+        send(jsonResponse(message.id, {}));
+      }
+      return;
+    }
+
+    if (message.method === "logging/setLevel") {
+      if (shouldRespond(message.id)) {
+        send(jsonResponse(message.id, {}));
+      }
+      return;
+    }
+
+    if (message.method === "notifications/message") {
       return;
     }
 
     if (message.method === "tools/list") {
-      send(jsonResponse(message.id, { tools: TOOLS }));
+      if (shouldRespond(message.id)) {
+        send(jsonResponse(message.id, { tools: TOOLS }));
+      }
       return;
     }
 
     if (message.method === "tools/call") {
       const params = message.params as ToolCallParams | undefined;
       if (!params?.name) {
-        send(jsonError(message.id, -32602, "Missing tool name"));
+        sendError(message.id, -32602, "Missing tool name", { method: message.method });
         return;
       }
       try {
         const result = await handleToolCall(params, config);
-        send(jsonResponse(message.id, result));
+        if (shouldRespond(message.id)) {
+          send(jsonResponse(message.id, result));
+        }
       } catch (error) {
-        send(jsonError(message.id, -32602, (error as Error).message));
+        sendError(message.id, -32602, (error as Error).message, { method: message.method, tool: params.name });
       }
       return;
     }
 
-    send(jsonError(message.id ?? null, -32601, `Unknown method: ${message.method}`));
+    sendError(message.id, -32601, `Unknown method: ${message.method}`, { method: message.method });
   });
 }
 
